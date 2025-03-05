@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+
+  <!-- CSS -->
+  <?!= include('styles.css.html'); ?>
+
+  <!-- jQuery -->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+
+  <!-- Component Functions -->
+  <?!= include('scripts.js.html'); ?>
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+</head>
+
+<body>
+  <div class="layout">
+    <!-- Sidebar -->
+    <?!= include('sidebar.html'); ?>
+
+    <!-- Main Content Area -->
+    <main class="main-content flex-grow-1" style="margin-left: 280px; padding: 32px; background-color: #f8f9fa;">
+      <div class="container-fluid">
+
+       <!-- Welcome Message -->
+     <?!= include('welcome.html'); ?>
+
+        <!-- Search Bar -->
+        <?!= include('searchBar.html'); ?>
+
+        <!-- Add Tags Section -->
+        <?!= include('addTags.html'); ?>
+      </div>
+
+      <section>
+        <!-- Search Results Section -->
+        <div class="thesis-results mt-4"></div>
+
+
+      </section>
+
+
+      <section
+        class="justify-content-center mt-5 mb-5 d-flex align-items-center justify-content-center flex-column gap-2"
+        style="padding: 32px;">
+        <!-- Pagination -->
+        <?!= include('pagination.html'); ?>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Tags Modal -->
+  <?!= include('tagsModal.html'); ?>
+
+  <!-- Analytics Modal -->
+  <?!= include('analyticsModal.html'); ?>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+
+  <!-- Guide Modal -->
+  <?!= include('guideModal.html'); ?>
+
+</body>
+
+</html>
+

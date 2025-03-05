@@ -1,0 +1,380 @@
+<script>
+  $(document).ready(function () {
+
+  let currentPage = 1;
+  const pageSize = 10;
+  let totalResults = 0;
+  let initialLoad = true;
+
+  // Function to perform the search
+  function performSearch() {
+
+     $('.welcome-message').hide();
+
+
+    const query = $('#searchInput').val() || '';
+    let yearFilter = $('input[name="yearFilter"]:checked').val() || 'anytime';
+
+    if (yearFilter === 'custom') {
+      const startYear = $('#startYear').val();
+      const endYear = $('#endYear').val();
+
+      if (startYear && endYear) {
+        yearFilter = {
+          type: 'custom',
+          startYear: parseInt(startYear),
+          endYear: parseInt(endYear)
+        };
+      } else {
+        alert('Please enter both start and end years for custom range');
+        return;
+      }
+    }
+
+    // loading spinner
+    $('#loadingSpinner').removeClass('d-none');
+    $('.thesis-results').empty();
+
+    google.script.run
+      .withSuccessHandler(handleSearchResponse)
+      .withFailureHandler(handleError)
+      .searchTheses(query, yearFilter, currentPage, pageSize, selectedTags);
+  }
+
+  // search response
+function handleSearchResponse(response) {
+  $('#loadingSpinner').addClass('d-none');
+  initialLoad = false;
+
+  if (response.status === "error") {
+    handleError(response.message);
+    return;
+  }
+
+  const { results, totalResults: total, page, pageSize } = response.data;
+  $('.thesis-results').empty();
+
+  if (!results || results.length === 0) {
+    $('.thesis-results').html(`
+      <div class="d-flex flex-column align-items-center justify-content-center py-5">
+        <div class="mb-3">
+          <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="#6c757d" class="bi bi-file-earmark-x" viewBox="0 0 16 16">
+            <path d="M6.854 7.146a.5.5 0 1 0-.708.708L7.293 9l-1.147 1.146a.5.5 0 0 0 .708.708L8 9.707l1.146 1.147a.5.5 0 0 0 .708-.708L8.707 9l1.147-1.146a.5.5 0 0 0-.708-.708L8 8.293z"/>
+            <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/>
+          </svg>
+        </div>
+        <h3 class="h4 text-muted mb-3">No matching theses found</h3>
+        <p class="text-muted text-center mb-1">Try adjusting your search terms or check the filters.</p>
+        <div class="mt-4">
+          <button class="btn btn-outline-primary" onclick="$('#searchInput').val('').trigger('keyup')">
+            <i class="bi bi-arrow-counterclockwise me-2"></i>
+            Clear search
+          </button>
+        </div>
+      </div>
+    `);
+    $('#pagination').hide();
+    return;
+  }
+
+  totalResults = total;
+  updatePaginationControls(); 
+
+  // Display the paginated results
+  results.forEach(result => {
+    const card = $('<div>').addClass('card mb-3 shadow-sm border-0');
+    const cardBody = $('<div>').addClass('card-body p-4');
+    
+    // Top section with meta info
+    const metaRow = $('<div>').addClass('d-flex justify-content-between align-items-center mb-3');
+    
+    const yearBadge = $('<span>').addClass('badge bg-dark rounded-pill px-3 py-2').text(result.year);
+    metaRow.append(yearBadge);
+    
+    const schoolInfo = $('<span>').addClass('text-muted small').html('<i class="bi bi-building me-1"></i>' + result.school);
+    metaRow.append(schoolInfo);
+    
+    cardBody.append(metaRow);
+    
+    // Title section
+    const titleRow = $('<h5>').addClass('card-title mb-3 fw-bold').text(result.title);
+    cardBody.append(titleRow);
+    
+    // Author section
+    const authorRow = $('<div>').addClass('mb-3 d-flex align-items-center');
+    authorRow.append($('<i>').addClass('bi bi-person me-2 text-muted'));
+    authorRow.append($('<span>').text(result.author));
+    cardBody.append(authorRow);
+    
+    // Tags section
+    if (result.tags && result.tags.length > 0) {
+      const tagsDiv = $('<div>').addClass('d-flex gap-2 flex-wrap mb-3');
+      result.tags.forEach(tag => {
+        if (tag) {
+          tagsDiv.append($('<span>').addClass('badge rounded-pill bg-light text-dark border').text(tag));
+        }
+      });
+      cardBody.append(tagsDiv);
+    }
+    
+    // Action buttons section
+    const actionRow = $('<div>').addClass('d-flex justify-content-end mt-3');
+    
+    if (result.link && result.link !== '#') {
+      actionRow.append(
+        $('<a>')
+          .attr({
+            'href': result.link,
+            'target': '_blank',
+            'class': 'btn btn-sm btn-outline-dark'
+          })
+          .html('<i class="bi bi-file-earmark-text me-1"></i> View Thesis')
+      );
+    } else {
+      actionRow.append(
+        $('<button>')
+          .attr({
+            'class': 'btn btn-sm btn-outline-secondary disabled',
+            'disabled': true
+          })
+          .html('<i class="bi bi-file-earmark-lock me-1"></i> Not Available')
+      );
+    }
+    
+    cardBody.append(actionRow);
+    
+    card.append(cardBody);
+    $('.thesis-results').append(card);
+  });
+  
+  // Add a subtle fade-in animation to the cards
+  $('.thesis-results .card').each(function(index) {
+    $(this).css('opacity', 0);
+    $(this).animate({
+      opacity: 1
+    }, 300 + (index * 100));
+  });
+}
+
+  // Handle errors
+  function handleError(error) {
+    $('#loadingSpinner').addClass('d-none');
+    $('.thesis-results').html(
+      '<div class="alert alert-danger">An error occurred while searching. Please try again.</div>'
+    );
+    console.error('Search error:', error);
+  }
+
+
+
+
+
+// Removing a tag
+window.removeTag = function (tag) {
+  selectedTags = selectedTags.filter(t => t !== tag);
+  updateSelectedTagsDisplay();
+  $(`#tag${tag.replace(/\s+/g, '')}`).prop('checked', false);
+  performSearch();
+  console.log('removetags')
+};
+
+
+
+
+
+    //paginationnnnnnnnnnnnn
+
+function updatePaginationControls() {
+  const totalPages = Math.ceil(totalResults / pageSize);
+  const paginationContainer = $('#pagination'); 
+  if (totalResults <= pageSize) {
+    paginationContainer.hide();
+    return;
+  }
+
+  paginationContainer.show();
+
+  const pageNumbersContainer = $('#pageNumbers');
+  pageNumbersContainer.empty();
+
+  const maxVisiblePages = 5;
+
+  if (totalPages <= maxVisiblePages) {
+    for (let i = 1; i <= totalPages; i++) {
+      appendPageButton(i);
+    }
+  } else {
+    appendPageButton(1);
+
+    if (currentPage > 3) {
+      pageNumbersContainer.append('<li class="page-item disabled"><a class="page-link">...</a></li>');
+    }
+
+    let startPage = Math.max(2, currentPage - 1);
+    let endPage = Math.min(totalPages - 1, currentPage + 1);
+
+    for (let i = startPage; i <= endPage; i++) {
+      appendPageButton(i);
+    }
+
+    if (currentPage < totalPages - 2) {
+      pageNumbersContainer.append('<li class="page-item disabled"><a class="page-link">...</a></li>');
+    }
+
+    appendPageButton(totalPages);
+  }
+
+  $('#prevPage').parent().toggleClass('disabled', currentPage === 1);
+  $('#nextPage').parent().toggleClass('disabled', currentPage === totalPages);
+}
+
+function appendPageButton(page) {
+  const activeClass = page === currentPage ? 'active' : '';
+  $('#pageNumbers').append(
+    `<li class="page-item ${activeClass}">
+      <a class="page-link" href="#" data-page="${page}">${page}</a>
+    </li>`
+  );
+}
+
+$(document).on('click', '.page-link', function (e) {
+  e.preventDefault();
+  const page = $(this).data('page');
+
+  if ($(this).parent().hasClass('disabled')) return;
+
+  if (page) {
+    currentPage = page;
+  } else if (this.id === 'prevPage' && currentPage > 1) {
+    currentPage--;
+  } else if (this.id === 'nextPage' && currentPage < Math.ceil(totalResults / pageSize)) {
+    currentPage++;
+  }
+
+  performSearch();
+});
+
+
+
+//Add Tags Functions
+    let selectedTags = [];
+
+function fetchAndDisplayTags() {
+  const tagsChecklist = $('#tagsChecklist');
+
+  tagsChecklist.html(`
+    <div class="d-flex justify-content-center align-items-center w-100" style="height: 70vh;">
+      <div class="spinner-border" role="status"></div>
+    </div>
+  `);
+
+  google.script.run
+    .withSuccessHandler((tags) => {
+      tagsChecklist.removeClass('d-flex justify-content-center align-items-center').css('height', '');
+
+
+      populateTagsModal(tags);
+    })
+    .withFailureHandler(handleTagsError)
+    .getAllTags();
+}
+
+
+function populateTagsModal(tags) {
+  const tagsChecklist = $('#tagsChecklist');
+  tagsChecklist.empty();
+
+  tags.forEach(tag => {
+    const checkbox = `
+      <div class="col">
+        <div class="card h-100 border-0 bg-light">
+          <div class="card-body">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" value="${tag}" id="tag${tag.replace(/\s+/g, '')}">
+              <label class="form-check-label" for="tag${tag.replace(/\s+/g, '')}">
+                ${tag}
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    tagsChecklist.append(checkbox);
+  });
+}
+
+  function handleTagsError(error) {
+    console.error('Error fetching tags:', error);
+    $('#tagsChecklist').html('<div class="alert alert-danger">Failed to load tags. Please try again.</div>');
+  }
+
+  $('.add-tags-button').click(function () {
+    fetchAndDisplayTags();
+    $('#tagsModal').modal('show');
+  });
+
+  $('#saveTagsButton').click(function () {
+    selectedTags = [];
+    $('input[type="checkbox"]:checked').each(function () {
+      selectedTags.push($(this).val());
+    });
+
+    updateSelectedTagsDisplay();
+    $('#tagsModal').modal('hide');
+    performSearch();
+  });
+
+  function updateSelectedTagsDisplay() {
+    const container = $('#selectedTagsContainer');
+    container.empty();
+
+    selectedTags.forEach(tag => {
+      const pill = `
+        <div class="badge border border-secondary-subtle text-dark d-flex align-items-center gap-2 p-2" style="border-color: #212121; background-color: transparent;">
+          <span>${tag}</span>
+          <i class="bi bi-x-circle" style="cursor: pointer;" onclick="removeTag('${tag}')"></i>
+        </div>
+      `;
+      container.append(pill);
+    });
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//searchbarrrrrrrrrrr
+
+    // Enter key in search input
+    $('#searchInput').keypress(function (e) {
+      if (e.which === 13) {
+        currentPage = 1; 
+        performSearch();
+      }
+    });
+
+    // Search button click
+    $('#searchButton').click(function () {
+      currentPage = 1; 
+      performSearch();
+    });
+
+    // Handle sidebar filter button click
+    $('.sidebar button.btn-dark').click(function () {
+      currentPage = 1; 
+      performSearch();
+    });
+
+    // Default to "Anytime" selected
+    $('#yearAnytime').prop('checked', true);
+  });
+</script>

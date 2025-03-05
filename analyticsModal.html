@@ -1,0 +1,484 @@
+<div class="modal fade" id="analyticsModal" tabindex="-1" aria-labelledby="analyticsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-fullscreen">
+    <div class="modal-content">
+      <div class="modal-header border-0 bg-light px-4 py-3">
+        <div>
+          <h5 class="modal-title fw-bold fs-3 mb-1" id="analyticsModalLabel" style="color: #212121;">Thesis Analytics</h5>
+          <p class="text-secondary mb-0">Overview of thesis distribution by field</p>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body bg-light px-4 py-4">
+        <div class="row g-4 mb-4">
+
+          <div class="col-md-6 col-lg-4">
+            <div class="bg-white rounded-4 p-4 shadow-sm hover-lift">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <p class="text-secondary mb-1">Total Theses</p>
+                  <div class="total-count-container">
+                    <h2 class="display-4 fw-bold mb-0 total-count d-none" style="color: #212121;">0</h2>
+                    <div class="skeleton-loader total-count-skeleton placeholder-glow">
+                      <span class="placeholder col-8"></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="rounded-circle bg-light p-3">
+                  <i class="bi bi-book fs-2" style="color: #212121;"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+
+
+          <div class="col-md-6 col-lg-4">
+            <div class="bg-white rounded-4 p-4 shadow-sm hover-lift">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <p class="text-secondary mb-1">Average per Year</p>
+                  <div class="avg-count-container">
+                    <h2 class="display-4 fw-bold mb-0 avg-count d-none" style="color: #212121;">0</h2>
+                    <div class="skeleton-loader avg-count-skeleton placeholder-glow">
+                      <span class="placeholder col-8"></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="rounded-circle bg-light p-3">
+                  <i class="bi bi-graph-up fs-2" style="color: #212121;"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+
+
+          <div class="col-md-6 col-lg-4">
+            <div class="bg-white rounded-4 p-4 shadow-sm hover-lift">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <p class="text-secondary mb-1">Most Active Field</p>
+                  <div class="top-field-container">
+                    <h4 class="fw-bold mb-0 top-field d-none" style="color: #212121;">-</h4>
+                    <div class="skeleton-loader top-field-skeleton placeholder-glow">
+                      <span class="placeholder col-8"></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="rounded-circle bg-light p-3">
+                  <i class="bi bi-trophy fs-2" style="color: #212121;"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-4">
+
+          <div class="col-lg-8">
+            <div class="bg-white rounded-4 p-4 shadow-sm hover-lift">
+              <h6 class="text-secondary mb-4">Thesis Distribution Over Time</h6>
+              <div id="distributionChart" style="height: 300px;"></div>
+            </div>
+          </div>
+
+
+          <div class="col-lg-4">
+            <div class="bg-white rounded-4 p-4 shadow-sm hover-lift">
+              <h6 class="text-secondary mb-3">Categories Distribution</h6>
+              
+              <div class="input-group mb-3">
+                <span class="input-group-text bg-light border-end-0">
+                  <i class="bi bi-search"></i>
+                </span>
+                <input type="text" class="form-control border-start-0 bg-light" 
+                       id="fieldSearch" placeholder="Search categories...">
+              </div>
+
+              <div class="field-list" style="height: 250px;">
+                <div class="table-responsive">
+                  <table class="table table-hover">
+                    <thead style="position: sticky; top: 0; background: white; z-index: 1;">
+                      <tr>
+                        <th>Field</th>
+                        <th class="text-end">Count</th>
+     
+                      </tr>
+                    </thead>
+                    <tbody id="fieldList">
+                    </tbody>
+                  </table>
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                  <div class="text-secondary small">
+                    Showing <span id="fieldStartRange">0</span>-<span id="fieldEndRange">0</span> of 
+                    <span id="totalFields">0</span>
+                  </div>
+                  <div class="btn-group">
+                    <button class="btn btn-sm btn-outline-secondary" id="prevFieldsPage">
+                      <i class="bi bi-chevron-left"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" id="nextFieldsPage">
+                      <i class="bi bi-chevron-right"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+
+<script>
+$(document).ready(function () {
+  google.charts.load('current', {'packages':['corechart']});
+  
+  let distributionChart;
+  let currentFieldPage = 1;
+  const fieldsPerPage = 10;
+  let allFields = [];
+  let filteredFields = [];
+  let analyticsData = null;
+  let isLoading = false;
+  let chartInitialized = false;
+
+  function initializeCharts() {
+    if (analyticsData && !chartInitialized) {
+      displayAnalyticsData(analyticsData);
+      chartInitialized = true;
+    }
+  }
+
+  function fetchAnalyticsData() {
+    if (isLoading || analyticsData) return;
+    
+    isLoading = true;
+    showLoadingState();
+
+    google.script.run
+      .withSuccessHandler((response) => {
+        analyticsData = response;
+        isLoading = false;
+        
+        if (google.visualization && google.visualization.AreaChart) {
+          displayAnalyticsData(analyticsData);
+          chartInitialized = true;
+        } else {
+          google.charts.setOnLoadCallback(() => {
+            displayAnalyticsData(analyticsData);
+            chartInitialized = true;
+          });
+        }
+      })
+      .withFailureHandler((error) => {
+        handleAnalyticsError(error);
+        isLoading = false;
+      })
+      .getThesisAnalytics();
+  }
+
+  function showLoadingState() {
+    $('.total-count, .avg-count, .top-field').addClass('d-none');
+    $('.total-count-skeleton, .avg-count-skeleton, .top-field-skeleton').removeClass('d-none');
+  }
+
+  function displayAnalyticsData(analytics) {
+    $('.skeleton-loader').addClass('d-none');
+    $('.total-count, .avg-count, .top-field').removeClass('d-none');
+
+    $('.total-count').text(analytics.totalTheses.toLocaleString());
+    $('.avg-count').text(analytics.averagePerYear.toLocaleString());
+    $('.top-field').text(analytics.mostActiveField.field);
+
+    const distributionContainer = document.getElementById('distributionChart');
+    if (distributionContainer) {
+      drawDistributionChart(analytics.yearlyDistribution);
+    }
+
+    allFields = analytics.fieldDistribution;
+    filteredFields = [...allFields];
+    currentFieldPage = 1;
+    
+    displayFieldPage();
+    updateFieldPagination();
+  }
+
+  function drawDistributionChart(yearlyData) {
+    const distributionData = new google.visualization.DataTable();
+    distributionData.addColumn('string', 'Year');
+    distributionData.addColumn('number', 'Theses');
+    
+    yearlyData.forEach(item => {
+      distributionData.addRow([item.year.toString(), item.count]);
+    });
+
+    const distributionOptions = {
+      curveType: 'function',
+      legend: { position: 'none' },
+      colors: ['#212121'],
+      backgroundColor: 'transparent',
+      chartArea: { width: '85%', height: '80%' },
+      hAxis: {
+        textStyle: { color: '#666' },
+        gridlines: { color: 'transparent' }
+      },
+      vAxis: {
+        textStyle: { color: '#666' },
+        gridlines: { color: '#eee' },
+        format: '#,###'
+      },
+      animation: {
+        startup: true,
+        duration: 1000,
+        easing: 'out'
+      }
+    };
+
+    if (distributionChart) {
+      distributionChart.clearChart();
+    }
+
+    distributionChart = new google.visualization.AreaChart(
+      document.getElementById('distributionChart')
+    );
+    distributionChart.draw(distributionData, distributionOptions);
+  }
+
+  let resizeTimeout;
+  function handleResize() {
+    if (resizeTimeout) clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+      if ($('#analyticsModal').is(':visible') && analyticsData) {
+        drawDistributionChart(analyticsData.yearlyDistribution);
+      }
+    }, 250);
+  }
+
+  function displayFieldPage() {
+    const fieldList = $('#fieldList');
+    fieldList.empty();
+    
+    const startIdx = (currentFieldPage - 1) * fieldsPerPage;
+    const endIdx = Math.min(startIdx + fieldsPerPage, filteredFields.length);
+    
+    for (let i = startIdx; i < endIdx; i++) {
+      const item = filteredFields[i];
+      const percentage = ((item.count / allFields.reduce((sum, field) => sum + field.count, 0)) * 100).toFixed(1);
+      
+      fieldList.append(`
+        <tr>
+          <td>${item.field}</td>
+          <td class="text-end">${item.count.toLocaleString()}</td>
+        </tr>
+      `);
+    }
+  }
+
+  function updateFieldPagination() {
+    const totalPages = Math.ceil(filteredFields.length / fieldsPerPage);
+    const startRange = ((currentFieldPage - 1) * fieldsPerPage) + 1;
+    const endRange = Math.min(currentFieldPage * fieldsPerPage, filteredFields.length);
+    
+    $('#fieldStartRange').text(startRange);
+    $('#fieldEndRange').text(endRange);
+    $('#totalFields').text(filteredFields.length);
+    
+    $('#prevFieldsPage').prop('disabled', currentFieldPage === 1);
+    $('#nextFieldsPage').prop('disabled', currentFieldPage >= totalPages);
+  }
+
+  // Pagination button handlers
+  $('#prevFieldsPage').on('click', function() {
+    if (currentFieldPage > 1) {
+      currentFieldPage--;
+      displayFieldPage();
+      updateFieldPagination();
+    }
+  });
+
+  $('#nextFieldsPage').on('click', function() {
+    const totalPages = Math.ceil(filteredFields.length / fieldsPerPage);
+    if (currentFieldPage < totalPages) {
+      currentFieldPage++;
+      displayFieldPage();
+      updateFieldPagination();
+    }
+  });
+
+  // Search handler with pagination reset
+  let searchTimeout;
+  $('#fieldSearch').on('input', function() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      const searchTerm = $(this).val().toLowerCase();
+      
+      filteredFields = allFields.filter(item => 
+        item.field.toLowerCase().includes(searchTerm)
+      );
+      
+      currentFieldPage = 1; 
+      displayFieldPage();
+      updateFieldPagination();
+    }, 300);
+  });
+
+  // Event Handlers
+  $('#analyticsModal').on('show.bs.modal', function () {
+    if (!analyticsData) {
+      fetchAnalyticsData();
+    }
+  });
+
+  $('#analyticsModal').on('hidden.bs.modal', function () {
+    // Optional Clear data 
+    // analyticsData = null;
+    // chartInitialized = false;
+  });
+
+  $(window).on('resize', handleResize);
+
+  $(window).on('unload', function() {
+    if (distributionChart) {
+      distributionChart.clearChart();
+    }
+  });
+
+  function handleAnalyticsError(error) {
+    console.error('Analytics error:', error);
+    $('.skeleton-loader').addClass('d-none');
+    $('.thesis-results').html(`
+      <div class="alert alert-danger">
+        Failed to load analytics data. Please try again.
+        <button class="btn btn-outline-danger btn-sm ms-3" onclick="fetchAnalyticsData()">
+          Retry
+        </button>
+      </div>
+    `);
+  }
+});
+</script>
+
+<style>
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08) !important;
+}
+
+.skeleton-loader {
+  min-height: 40px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+.field-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.field-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.field-list::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.field-list::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+.table {
+  margin-bottom: 0;
+}
+
+.table th {
+  font-weight: 600;
+  color: #666;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.table td {
+  vertical-align: middle;
+  padding: 0.75rem;
+}
+
+.table tbody tr:hover {
+  background-color: rgba(33, 33, 33, 0.02);
+}
+
+#fieldSearch {
+  border-radius: 0 0.375rem 0.375rem 0;
+}
+
+#fieldSearch:focus {
+  box-shadow: none;
+  border-color: #dee2e6;
+}
+
+.input-group-text {
+  border-radius: 0.375rem 0 0 0.375rem;
+  color: #666;
+}
+
+/* Pagination button styles */
+.btn-group .btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+.btn-group .btn:focus {
+  box-shadow: none;
+}
+
+.btn-outline-secondary:hover {
+  background-color: #212121;
+  border-color: #212121;
+}
+
+
+.field-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.table-responsive {
+  flex-grow: 1;
+  overflow-y: auto;
+}
+
+.table td, .table th {
+  padding: 0.75rem;
+  white-space: nowrap;
+}
+
+
+.btn-outline-secondary:disabled {
+  background-color: #f8f9fa;
+  border-color: #dee2e6;
+  color: #6c757d;
+  cursor: not-allowed;
+}
+
+
+.btn-outline-secondary:not(:disabled):hover {
+  background-color: #212121;
+  border-color: #212121;
+  color: white;
+}
+</style>

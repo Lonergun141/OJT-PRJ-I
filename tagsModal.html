@@ -1,0 +1,24 @@
+<div class="modal fade" id="tagsModal" tabindex="-1" aria-labelledby="tagsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-fullscreen">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="tagsModalLabel">Select Tags</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="tagsChecklist" class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4">
+          <!-- Loading Skeleton -->
+          <div class="col">
+            <div class="spinner-border" role="status">
+            </div>
+          </div>
+
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-dark" id="saveTagsButton">Save Tags</button>
+      </div>
+    </div>
+  </div>
+</div>
